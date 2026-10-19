@@ -26,37 +26,32 @@
 # Define required environment variables
 #------------------------------------------------------------------------------------------------
 # Define target platform: PLATFORM_DESKTOP, PLATFORM_WEB, PLATFORM_DRM, PLATFORM_ANDROID
-PLATFORM              ?= PLATFORM_DESKTOP
+PLATFORM             ?= PLATFORM_DESKTOP
 
 # Define project variables
-PROJECT_NAME          ?= raylib_game
-PROJECT_VERSION       ?= 1.0
-PROJECT_BUILD_PATH    ?= .
-PROJECT_SOURCE_FILES  ?= \
-    raylib_game.c \
-    screen_logo.c \
-    screen_title.c \
-    screen_options.c \
-    screen_gameplay.c \
-    screen_ending.c
+PROJECT_NAME         ?= raylib_game
+PROJECT_VERSION      ?= 1.0
+PROJECT_BUILD_PATH   ?= .
+PROJECT_SOURCE_FILES ?= \
+    raylib_game.c
 
 # raylib library variables
-RAYLIB_PATH           ?= C:\raylib\raylib
-RAYLIB_INCLUDE_PATH   ?= $(RAYLIB_PATH)/src
-RAYLIB_LIB_PATH       ?= $(RAYLIB_PATH)/src
+RAYLIB_PATH          ?= C:\raylib\raylib
+RAYLIB_INCLUDE_PATH  ?= $(RAYLIB_PATH)/src
+RAYLIB_LIB_PATH      ?= $(RAYLIB_PATH)/src
 # Library type used for raylib: STATIC (.a) or SHARED (.so/.dll)
-RAYLIB_LIBTYPE        ?= STATIC
+RAYLIB_LIBTYPE       ?= STATIC
 
 # Build mode for project: DEBUG or RELEASE
-BUILD_MODE            ?= RELEASE
+BUILD_MODE           ?= RELEASE
 
 # PLATFORM_WEB: Default properties
-BUILD_WEB_ASYNCIFY    ?= FALSE
-BUILD_WEB_SHELL       ?= minshell.html
-BUILD_WEB_HEAP_SIZE   ?= 128MB
-BUILD_WEB_STACK_SIZE  ?= 1MB
+BUILD_WEB_ASYNCIFY     ?= FALSE
+BUILD_WEB_SHELL        ?= minshell.html
+BUILD_WEB_HEAP_SIZE    ?= 128MB
+BUILD_WEB_STACK_SIZE   ?= 1MB
 BUILD_WEB_ASYNCIFY_STACK_SIZE ?= 1048576
-BUILD_WEB_RESOURCES   ?= TRUE
+BUILD_WEB_RESOURCES    ?= TRUE
 BUILD_WEB_RESOURCES_PATH  ?= resources
 
 # Determine PLATFORM_OS in case PLATFORM_DESKTOP selected
@@ -147,15 +142,15 @@ endif
 
 # Define compiler flags: CFLAGS
 #------------------------------------------------------------------------------------------------
-#  -O1                  defines optimization level
-#  -g                   include debug information on compilation
-#  -s                   strip unnecessary data from build
-#  -Wall                turns on most, but not all, compiler warnings
-#  -std=c99             defines C language mode (standard C from 1999 revision)
-#  -std=gnu99           defines C language mode (GNU C from 1999 revision)
-#  -Wno-missing-braces  ignore invalid warning (GCC bug 53119)
-#  -Wno-unused-value    ignore unused return values of some functions (i.e. fread())
-#  -D_DEFAULT_SOURCE    use with -std=c99 on Linux and PLATFORM_WEB, required for timespec
+#   -O1                 defines optimization level
+#   -g                  include debug information on compilation
+#   -s                  strip unnecessary data from build
+#   -Wall               turns on most, but not all, compiler warnings
+#   -std=c99            defines C language mode (standard C from 1999 revision)
+#   -std=gnu99          defines C language mode (GNU C from 1999 revision)
+#   -Wno-missing-braces ignore invalid warning (GCC bug 53119)
+#   -Wno-unused-value   ignore unused return values of some functions (i.e. fread())
+#   -D_DEFAULT_SOURCE   use with -std=c99 on Linux and PLATFORM_WEB, required for timespec
 CFLAGS = -Wall -D_DEFAULT_SOURCE -Wno-missing-braces -Wno-unused-value -Wno-unused-result -Wno-pointer-sign $(PROJECT_CUSTOM_FLAGS)
 #CFLAGS += -Wextra -Wmissing-prototypes -Wstrict-prototypes
 
@@ -226,22 +221,22 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     endif
 endif
 ifeq ($(PLATFORM),PLATFORM_WEB)
-    # -Os                        # size optimization
-    # -O2                        # optimization level 2, if used, also set --memory-init-file 0
-    # -sUSE_GLFW=3               # Use glfw3 library (context/input management)
-    # -sALLOW_MEMORY_GROWTH=1    # to allow memory resizing -> WARNING: Audio buffers could FAIL!
-    # -sTOTAL_MEMORY=16777216    # to specify heap memory size (default = 16MB) (67108864 = 64MB)
-    # -sUSE_PTHREADS=1           # multithreading support
-    # -sWASM=0                   # disable Web Assembly, emitted by default
-    # -sASYNCIFY                 # lets synchronous C/C++ code interact with asynchronous JS
-    # -sFORCE_FILESYSTEM=1       # force filesystem to load/save files data
-    # -sASSERTIONS=1             # enable runtime checks for common memory allocation errors (-O1 and above turn it off)
-    # -sMINIFY_HTML=0            # minify generated html from shell.html
-    # --profiling                # include information for code profiling
-    # --memory-init-file 0       # to avoid an external memory initialization code file (.mem)
-    # --preload-file resources   # specify a resources folder for data compilation
-    # --source-map-base          # allow debugging in browser with source map
-    # --shell-file shell.html    # define a custom shell .html and output extension
+    # -Os                       # size optimization
+    # -O2                       # optimization level 2, if used, also set --memory-init-file 0
+    # -sUSE_GLFW=3              # Use glfw3 library (context/input management)
+    # -sALLOW_MEMORY_GROWTH=1   # to allow memory resizing -> WARNING: Audio buffers could FAIL!
+    # -sTOTAL_MEMORY=16777216   # to specify heap memory size (default = 16MB) (67108864 = 64MB)
+    # -sUSE_PTHREADS=1          # multithreading support
+    # -sWASM=0                  # disable Web Assembly, emitted by default
+    # -sASYNCIFY                # lets synchronous C/C++ code interact with asynchronous JS
+    # -sFORCE_FILESYSTEM=1      # force filesystem to load/save files data
+    # -sASSERTIONS=1            # enable runtime checks for common memory allocation errors (-O1 and above turn it off)
+    # -sMINIFY_HTML=0           # minify generated html from shell.html
+    # --profiling               # include information for code profiling
+    # --memory-init-file 0      # to avoid an external memory initialization code file (.mem)
+    # --preload-file resources  # specify a resources folder for data compilation
+    # --source-map-base         # allow debugging in browser with source map
+    # --shell-file shell.html   # define a custom shell .html and output extension
     LDFLAGS += -sUSE_GLFW=3 -sTOTAL_MEMORY=$(BUILD_WEB_HEAP_SIZE) -sSTACK_SIZE=$(BUILD_WEB_STACK_SIZE) -sFORCE_FILESYSTEM=1 -sMINIFY_HTML=0
 
     # Build using asyncify
@@ -284,95 +279,4 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         else
             # On X11 requires also below libraries
             LDLIBS += -lX11
-            # NOTE: It seems additional libraries are not required any more, latest GLFW just dlopen them
-            #LDLIBS += -lXrandr -lXinerama -lXi -lXxf86vm -lXcursor
-        endif
-        # Explicit link to libc
-        ifeq ($(RAYLIB_LIBTYPE),SHARED)
-            LDLIBS += -lc
-        endif
-    endif
-    ifeq ($(PLATFORM_OS),OSX)
-        # Libraries for OSX 10.9 desktop compiling
-        # NOTE: Required packages: libopenal-dev libegl1-mesa-dev
-        LDLIBS = -lraylib -framework OpenGL -framework Cocoa -framework IOKit -framework CoreAudio -framework CoreVideo -framework QuartzCore
-    endif
-    ifeq ($(PLATFORM_OS),BSD)
-        # Libraries for FreeBSD, OpenBSD, NetBSD, DragonFly desktop compiling
-        # NOTE: Required packages: mesa-libs
-        LDLIBS = -lraylib -lGL -lpthread -lm
-
-        # On XWindow requires also below libraries
-        LDLIBS += -lX11 -lXrandr -lXinerama -lXi -lXxf86vm -lXcursor
-    endif
-endif
-ifeq ($(PLATFORM),PLATFORM_WEB)
-    # Libraries for web (HTML5) compiling
-    LDLIBS = $(RAYLIB_LIB_PATH)/libraylib.web.a
-endif
-ifeq ($(PLATFORM),PLATFORM_DRM)
-    # Libraries for DRM compiling
-    # NOTE: Required packages: libasound2-dev (ALSA)
-    LDLIBS = -lraylib -lGLESv2 -lEGL -lpthread -lrt -lm -lgbm -ldrm -ldl
-endif
-
-
-# Define all object files from source files
-#------------------------------------------------------------------------------------------------
-OBJS = $(patsubst %.c, %.o, $(PROJECT_SOURCE_FILES))
-
-# Define processes to execute
-#------------------------------------------------------------------------------------------------
-# For Android platform we call a custom Makefile.Android
-ifeq ($(PLATFORM),PLATFORM_ANDROID)
-    MAKEFILE_TARGET = -f Makefile.Android
-    export PROJECT_NAME
-    export PROJECT_SOURCE_FILES
-else
-    MAKEFILE_TARGET = $(PROJECT_NAME)
-endif
-
-# Default target entry
-all:
-	$(MAKE) $(MAKEFILE_TARGET)
-
-# Project target defined by PROJECT_NAME
-$(PROJECT_NAME): $(OBJS)
-	$(CC) -o $(PROJECT_BUILD_PATH)/$(PROJECT_NAME)$(EXT) $(OBJS) $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(LDLIBS) -D$(PLATFORM)
-
-# Compile source files
-# NOTE: This pattern will compile every module defined on $(OBJS)
-%.o: %.c
-	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE_PATHS) -D$(PLATFORM)
-
-# Clean everything
-clean:
-ifeq ($(PLATFORM),PLATFORM_DESKTOP)
-    ifeq ($(PLATFORM_OS),WINDOWS)
-	del *.o *.exe /s
-    endif
-    ifeq ($(PLATFORM_OS),LINUX)
-	find . -type f -executable -delete
-	rm -fv *.o
-    endif
-    ifeq ($(PLATFORM_OS),OSX)
-	rm -f *.o external/*.o $(PROJECT_NAME)
-    endif
-endif
-ifeq ($(PLATFORM),PLATFORM_DRM)
-	find . -type f -executable -delete
-	rm -fv *.o
-endif
-ifeq ($(PLATFORM),PLATFORM_WEB)
-    ifeq ($(PLATFORM_OS),WINDOWS)
-	del *.o *.html *.js
-    endif
-    ifeq ($(PLATFORM_OS),LINUX)
-	rm -fv *.o $(PROJECT_NAME).data $(PROJECT_NAME).html $(PROJECT_NAME).js $(PROJECT_NAME).wasm
-    endif
-    ifeq ($(PLATFORM_OS),OSX)
-	rm -f *.o $(PROJECT_NAME).data $(PROJECT_NAME).html $(PROJECT_NAME).js $(PROJECT_NAME).wasm
-    endif
-endif
-	@echo Cleaning done
-
+            # NOTE
