@@ -10,302 +10,288 @@
 *
 ********************************************************************************************/
 
-#include "raylib.h"
-#include "screens.h"    // NOTE: Declares global (extern) variables and screens functions
+#include <raylib.h>
 
 #if defined(PLATFORM_WEB)
-    #include <emscripten/emscripten.h>      // Emscripten library
+    #include <emscripten/emscripten.h>
 #endif
 
-#include <stdio.h>                          // Required for: printf()
-#include <stdlib.h>                         // Required for: 
-#include <string.h>                         // Required for:
+#define FILAS 10
+#define COLUMNAS 6
 
-//----------------------------------------------------------------------------------
-// Defines and Macros
-//----------------------------------------------------------------------------------
-// Simple log system to avoid printf() calls if required
-// NOTE: Avoiding those calls, also avoids const strings memory usage
-#define SUPPORT_LOG_INFO
-#if defined(SUPPORT_LOG_INFO)
-    #define LOG(...) printf(__VA_ARGS__)
-#else
-    #define LOG(...)
-#endif
+typedef struct {
+    Rectangle rect;
+    bool activo;
+} Ladrillo;
 
-//----------------------------------------------------------------------------------
-// Shared Variables Definition (global)
-// NOTE: Those variables are shared between modules through screens.h
-//----------------------------------------------------------------------------------
-GameScreen currentScreen = LOGO;
-Font font = { 0 };
-Music music = { 0 };
-Sound fxCoin = { 0 };
+typedef struct {
+    Rectangle EstructuraRectangulo;
+} TipoBarra;
 
-//----------------------------------------------------------------------------------
-// Global Variables Definition (local to this module)
-//----------------------------------------------------------------------------------
-static const int screenWidth = 800;
-static const int screenHeight = 450;
+// Variables globales para que el bucle web pueda acceder a ellas
+static Music musicaFondo = { 0 };
+static Sound sonidoWin = { 0 };
+static Sound sonidoLose = { 0 };
+static Sound sonidoReboteLadrillo = { 0 };
+static Sound sonidoReboteBarra = { 0 };
 
-// Required variables to manage screen transitions (fade-in, fade-out)
-static float transAlpha = 0.0f;
-static bool onTransition = false;
-static bool transFadeOut = false;
-static int transFromScreen = -1;
-static GameScreen transToScreen = UNKNOWN;
+static int anchoLadrillo = 60, altoLadrillo = 20;
+static int espacio = 10, frames = 0, contador = 0;
+static int vidas = 3, puntuacion = 0;
+static Vector2 PosicionPelota = {320.0f, 760.0f};
+static Vector2 VelocidadPelota = {6.0f, -6.0f};
+static bool gameOver = false;
+static bool pausaPorMuerte = false;
+static bool ganador = false;
+static float RadioPelota = 5.0f;
+static bool PantallaInicial = true;
+static bool MusicaFondo = true;
 
-//----------------------------------------------------------------------------------
-// Module Functions Declaration
-//----------------------------------------------------------------------------------
-static void ChangeToScreen(int screen);     // Change to screen, no transition effect
+static TipoBarra barra;
+static Ladrillo ladrillos[FILAS][COLUMNAS];
 
-static void TransitionToScreen(int screen); // Request transition to next screen
-static void UpdateTransition(void);         // Update transition effect
-static void DrawTransition(void);           // Draw transition effect (full-screen rectangle)
-
-static void UpdateDrawFrame(void);          // Update and draw one frame
-
-//----------------------------------------------------------------------------------
-// Program main entry point
-//----------------------------------------------------------------------------------
-int main(void)
+// Función que ejecuta un frame del juego (necesaria para Emscripten y PC)
+static void UpdateDrawFrame(void)
 {
-    // Initialization
-    //---------------------------------------------------------
-    InitWindow(screenWidth, screenHeight, "raylib game template");
+    if (IsKeyPressed(KEY_O)){
+        MusicaFondo = false;
+    }
+    if (IsKeyPressed(KEY_I)){
+        MusicaFondo = true;
+    }
 
-    InitAudioDevice();      // Initialize audio device
+    if (PantallaInicial) {
+        if (MusicaFondo){
+            UpdateMusicStream(musicaFondo);
+            if (!IsMusicStreamPlaying(musicaFondo)) {
+                PlayMusicStream(musicaFondo);
+            }
+        }
+        
+        BeginDrawing();
+            ClearBackground(BLACK);
+            DrawText("Presiona 'Y' para video de YouTube :D", 30, 400, 30, GOLD);
+            DrawText("Presiona 'E' para iniciar el juego", 30, 440, 30, SKYBLUE);
+            DrawText("Presiona 'ESC' para salir del juego", 30, 480, 30, SKYBLUE);
+            DrawText("CONTROLES AQUÍ", 30, 700, 30, WHITE);
+            DrawText("Left Arrow - Right Arrow    <---", 30, 760, 25, WHITE);
+            DrawText("Hold LeftMouseButton == Arrows    <---", 30, 800, 25, WHITE);
+            DrawText("Apagar Musica con tecla 'O'", 30, 840, 25, WHITE);
+            DrawText("Encender Musica con tecla 'I'", 30, 880, 25, WHITE);
+            
+            if (IsKeyPressed(KEY_Y)){
+                OpenURL("https://www.youtube.com/watch?v=yztF4NBuanI");
+            }
+            if (IsKeyPressed(KEY_E)){
+                PantallaInicial = false;
+            }
+        EndDrawing();
+        return;
+    }
 
-    // Load global data (assets that must be available in all screens, i.e. font)
-    font = LoadFont("resources/mecha.png");
-    //music = LoadMusicStream("resources/ambient.ogg"); // TODO: Load music
-    fxCoin = LoadSound("resources/coin.wav");
+    // BUCLE PRINCIPAL DEL JUEGO
+    if (MusicaFondo && !pausaPorMuerte && !ganador) {
+        UpdateMusicStream(musicaFondo);
+        if (!IsMusicStreamPlaying(musicaFondo)) {
+            PlayMusicStream(musicaFondo);
+        }
+    }
+    
+    frames++;
+    if(frames >= 60){
+        contador++;
+        frames = 0;
+    }
+    
+    if (!pausaPorMuerte && !ganador) {
+        PosicionPelota.x += VelocidadPelota.x;
+        PosicionPelota.y += VelocidadPelota.y;
+       
+        if (IsKeyDown(KEY_LEFT) && barra.EstructuraRectangulo.x >= 0.0f) barra.EstructuraRectangulo.x -= 7.0f;
+        if (IsKeyDown(KEY_RIGHT) && barra.EstructuraRectangulo.x <= 640.0f - barra.EstructuraRectangulo.width) barra.EstructuraRectangulo.x += 7.0f;
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            Vector2 touchPos = GetMousePosition();
+            barra.EstructuraRectangulo.x = touchPos.x - (barra.EstructuraRectangulo.width / 2.0f);
+        }
+       
+        if (CheckCollisionCircleRec(PosicionPelota, RadioPelota, barra.EstructuraRectangulo)){
+            PlaySound(sonidoReboteBarra);
+            float centroBarra = barra.EstructuraRectangulo.x + (barra.EstructuraRectangulo.width / 2.0f);
+            float distanciaX = PosicionPelota.x - centroBarra;
+            VelocidadPelota.x = distanciaX * 0.3f; 
+            VelocidadPelota.y *= -1;
+        }
+        if (PosicionPelota.x - RadioPelota <= 0) VelocidadPelota.x *= -1;
+        if (PosicionPelota.x + RadioPelota >= 640) VelocidadPelota.x *= -1;
+        if (PosicionPelota.y - RadioPelota <= 0) VelocidadPelota.y *= -1;
+       
+        if (PosicionPelota.y >= 960.0f) {
+            vidas -= 1;
+            pausaPorMuerte = true;
+            if (MusicaFondo){
+                PauseMusicStream(musicaFondo);
+            }
+            PlaySound(sonidoLose);
+            if (vidas <= 0) {
+                gameOver = true;
+            }
+        }
+       
+        if (puntuacion == 60000){
+            ganador = true;
+            if (MusicaFondo){
+                PauseMusicStream(musicaFondo);
+            }
+            PlaySound(sonidoWin);
+        }
+    }
+        
+    BeginDrawing();
+        ClearBackground(BLACK);
+        
+        if (pausaPorMuerte && !gameOver && !ganador) {
+            DrawText("Perdiste una vida", 140, 440, 40, RED);
+            DrawText("Presiona 'R' para reintentar", 30, 520, 40, SKYBLUE);
+            if (IsKeyPressed(KEY_R)) {
+                if (MusicaFondo){
+                    ResumeMusicStream(musicaFondo);
+                }
+                PosicionPelota.x = 320.0f;
+                PosicionPelota.y = 760.0f; 
+                VelocidadPelota.y = -6.0f;
+                barra.EstructuraRectangulo.width += 15;
+                pausaPorMuerte = false;    
+            }
+        }
+        
+        if (gameOver && !ganador) {
+            DrawText("Te quedaste sin vidas", 70, 440, 40, RED);
+            DrawText("Presiona 'R' para volver a jugar", 30, 520, 35, SKYBLUE);
+            
+            if (IsKeyPressed(KEY_R)) {
+                for (int i = 0; i < FILAS; i++) {
+                    for (int j = 0; j < COLUMNAS; j++) {
+                        ladrillos[i][j].activo = true;
+                    }
+                }
+                if (MusicaFondo){
+                    ResumeMusicStream(musicaFondo);
+                }
+                PosicionPelota.x = 320.0f;
+                PosicionPelota.y = 760.0f;
+                VelocidadPelota.y = -6.0f;
+                puntuacion = 0;
+                vidas = 3;
+                barra.EstructuraRectangulo.width = 60.0f;
+                pausaPorMuerte = false;
+                gameOver = false; 
+            }
+        }
+        
+        DrawText("PUNTUACION :", 20, 830, 30, WHITE);
+        DrawText(TextFormat(" %d", puntuacion), 250, 830, 30, YELLOW);
+        
+        DrawText("Vidas Restantes :", 20, 860, 30, WHITE);
+        DrawText(TextFormat(" %d", vidas), 300, 860, 30, RED);
+        
+        DrawText("Tiempo Perdido en este juego :", 20, 900, 30, WHITE);
+        DrawText(TextFormat(" %d", contador), 500, 900, 30, GOLD);
+        
+        DrawCircleV(PosicionPelota, RadioPelota, WHITE);
+        DrawRectangleRec(barra.EstructuraRectangulo, GREEN);
+        
+        for (int i = 0; i < FILAS; i++){
+            for (int j = 0; j < COLUMNAS; j++){
+                if (CheckCollisionCircleRec(PosicionPelota, RadioPelota, ladrillos[i][j].rect) && ladrillos[i][j].activo) {
+                    puntuacion += 1000;
+                    PlaySound(sonidoReboteLadrillo);
+                    
+                    if (PosicionPelota.x >= ladrillos[i][j].rect.x && PosicionPelota.x <= ladrillos[i][j].rect.x + ladrillos[i][j].rect.width) {
+                        VelocidadPelota.y *= -1;
+                    } 
+                    else {
+                        VelocidadPelota.x *= -1;
+                    }
+                    ladrillos[i][j].activo = false;
+                }
+                
+                if(ladrillos[i][j].activo){
+                    DrawRectangleRec(ladrillos[i][j].rect, YELLOW);
+                }
+            }
+        }
+        
+        if (ganador){
+            DrawText("¡¡GANASTE FELICATIONES!!", 40, 240, 40, GOLD);
+            DrawText("Presiona 'R' para volver a jugar", 30, 440, 35, SKYBLUE);
+            DrawText("Presiona 'ESC' para salirte", 30, 500, 35, SKYBLUE);
+            if (IsKeyPressed(KEY_R)) {
+                if (MusicaFondo){
+                    ResumeMusicStream(musicaFondo);
+                }
+                for (int i = 0; i < FILAS; i++) {
+                    for (int j = 0; j < COLUMNAS; j++) {
+                        ladrillos[i][j].activo = true;
+                    }
+                }
+                PosicionPelota.x = 320.0f;
+                PosicionPelota.y = 760.0f;
+                VelocidadPelota.y = -6.0f;
+                puntuacion = 0;
+                vidas = 3;
+                barra.EstructuraRectangulo.width = 60.0f;
+                ganador = false;
+            }
+        }
+    EndDrawing();
+}
 
-    SetMusicVolume(music, 1.0f);
-    PlayMusicStream(music);
+int main(void) {
+    InitWindow(640, 960, "Mi Segundo Juego");
+    InitAudioDevice();
 
-    // Setup and init first screen
-    currentScreen = LOGO;
-    InitLogoScreen();
+    // Cargar recursos con la ruta de la carpeta resources/ para la web
+    musicaFondo = LoadMusicStream("resources/FondoBrick.mp3");
+    sonidoWin = LoadSound("resources/WinBricks.mp3");
+    sonidoLose = LoadSound("resources/LoseBricks.mp3");
+    sonidoReboteLadrillo = LoadSound("resources/click.wav");
+    sonidoReboteBarra = LoadSound("resources/hitHurt.wav");
+
+    barra.EstructuraRectangulo.x = 275.0f;
+    barra.EstructuraRectangulo.y = 800.0f;
+    barra.EstructuraRectangulo.width = 60.0f;
+    barra.EstructuraRectangulo.height = 15.0f;
+    
+    for (int i = 0; i < FILAS; i++){
+        for (int j = 0; j < COLUMNAS; j++){
+            ladrillos[i][j].rect.x = 100 + j * (anchoLadrillo + espacio);
+            ladrillos[i][j].rect.y = 50 + i * (altoLadrillo + espacio);
+            ladrillos[i][j].rect.width = anchoLadrillo;
+            ladrillos[i][j].rect.height = altoLadrillo;
+            ladrillos[i][j].activo = true;
+        }
+    }
+    
+    PlayMusicStream(musicaFondo);
 
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
 #else
-    SetTargetFPS(60);       // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
-
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
-    {
+    SetTargetFPS(60);
+    while (!WindowShouldClose()) {
         UpdateDrawFrame();
     }
 #endif
 
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    // Unload current screen data before closing
-    switch (currentScreen)
-    {
-        case LOGO: UnloadLogoScreen(); break;
-        case TITLE: UnloadTitleScreen(); break;
-        case OPTIONS: UnloadOptionsScreen(); break;
-        case GAMEPLAY: UnloadGameplayScreen(); break;
-        case ENDING: UnloadEndingScreen(); break;
-        default: break;
-    }
-
-    // Unload global data loaded
-    UnloadFont(font);
-    UnloadMusicStream(music);
-    UnloadSound(fxCoin);
-
-    CloseAudioDevice();     // Close audio context
-
-    CloseWindow();          // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
-
+    UnloadSound(sonidoReboteLadrillo);
+    UnloadSound(sonidoReboteBarra);
+    UnloadSound(sonidoWin);
+    UnloadSound(sonidoLose);
+    UnloadMusicStream(musicaFondo);
+    CloseAudioDevice();
+    CloseWindow();
+    
     return 0;
 }
-
-//----------------------------------------------------------------------------------
-// Module Functions Definition
-//----------------------------------------------------------------------------------
-// Change to next screen, no transition
-static void ChangeToScreen(int screen)
-{
-    // Unload current screen
-    switch (currentScreen)
-    {
-        case LOGO: UnloadLogoScreen(); break;
-        case TITLE: UnloadTitleScreen(); break;
-        case OPTIONS: UnloadOptionsScreen(); break;
-        case GAMEPLAY: UnloadGameplayScreen(); break;
-        case ENDING: UnloadEndingScreen(); break;
-        default: break;
-    }
-
-    // Init next screen
-    switch (screen)
-    {
-        case LOGO: InitLogoScreen(); break;
-        case TITLE: InitTitleScreen(); break;
-        case OPTIONS: InitOptionsScreen(); break;
-        case GAMEPLAY: InitGameplayScreen(); break;
-        case ENDING: InitEndingScreen(); break;
-        default: break;
-    }
-
-    currentScreen = screen;
-}
-
-// Request transition to next screen
-static void TransitionToScreen(int screen)
-{
-    onTransition = true;
-    transFadeOut = false;
-    transFromScreen = currentScreen;
-    transToScreen = screen;
-    transAlpha = 0.0f;
-}
-
-// Update transition effect (fade-in, fade-out)
-static void UpdateTransition(void)
-{
-    if (!transFadeOut)
-    {
-        transAlpha += 0.05f;
-
-        // NOTE: Due to float internal representation, condition jumps on 1.0f instead of 1.05f
-        // For that reason we compare against 1.01f, to avoid last frame loading stop
-        if (transAlpha > 1.01f)
-        {
-            transAlpha = 1.0f;
-
-            // Unload current screen
-            switch (transFromScreen)
-            {
-                case LOGO: UnloadLogoScreen(); break;
-                case TITLE: UnloadTitleScreen(); break;
-                case OPTIONS: UnloadOptionsScreen(); break;
-                case GAMEPLAY: UnloadGameplayScreen(); break;
-                case ENDING: UnloadEndingScreen(); break;
-                default: break;
-            }
-
-            // Load next screen
-            switch (transToScreen)
-            {
-                case LOGO: InitLogoScreen(); break;
-                case TITLE: InitTitleScreen(); break;
-                case OPTIONS: InitOptionsScreen(); break;
-                case GAMEPLAY: InitGameplayScreen(); break;
-                case ENDING: InitEndingScreen(); break;
-                default: break;
-            }
-
-            currentScreen = transToScreen;
-
-            // Activate fade out effect to next loaded screen
-            transFadeOut = true;
-        }
-    }
-    else  // Transition fade out logic
-    {
-        transAlpha -= 0.02f;
-
-        if (transAlpha < -0.01f)
-        {
-            transAlpha = 0.0f;
-            transFadeOut = false;
-            onTransition = false;
-            transFromScreen = -1;
-            transToScreen = UNKNOWN;
-        }
-    }
-}
-
-// Draw transition effect (full-screen rectangle)
-static void DrawTransition(void)
-{
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, transAlpha));
-}
-
-// Update and draw game frame
-static void UpdateDrawFrame(void)
-{
-    // Update
-    //----------------------------------------------------------------------------------
-    //UpdateMusicStream(music);       // NOTE: Music keeps playing between screens
-
-    if (!onTransition)
-    {
-        switch(currentScreen)
-        {
-            case LOGO:
-            {
-                UpdateLogoScreen();
-
-                if (FinishLogoScreen()) TransitionToScreen(TITLE);
-
-            } break;
-            case TITLE:
-            {
-                UpdateTitleScreen();
-
-                if (FinishTitleScreen() == 1) TransitionToScreen(OPTIONS);
-                else if (FinishTitleScreen() == 2) TransitionToScreen(GAMEPLAY);
-
-            } break;
-            case OPTIONS:
-            {
-                UpdateOptionsScreen();
-
-                if (FinishOptionsScreen()) TransitionToScreen(TITLE);
-
-            } break;
-            case GAMEPLAY:
-            {
-                UpdateGameplayScreen();
-
-                if (FinishGameplayScreen() == 1) TransitionToScreen(ENDING);
-                //else if (FinishGameplayScreen() == 2) TransitionToScreen(TITLE);
-
-            } break;
-            case ENDING:
-            {
-                UpdateEndingScreen();
-
-                if (FinishEndingScreen() == 1) TransitionToScreen(TITLE);
-
-            } break;
-            default: break;
-        }
-    }
-    else UpdateTransition();    // Update transition (fade-in, fade-out)
-    //----------------------------------------------------------------------------------
-
-    // Draw
-    //----------------------------------------------------------------------------------
-    BeginDrawing();
-
-        ClearBackground(RAYWHITE);
-
-        switch(currentScreen)
-        {
-            case LOGO: DrawLogoScreen(); break;
-            case TITLE: DrawTitleScreen(); break;
-            case OPTIONS: DrawOptionsScreen(); break;
-            case GAMEPLAY: DrawGameplayScreen(); break;
-            case ENDING: DrawEndingScreen(); break;
-            default: break;
-        }
-
-        // Draw full screen rectangle in front of everything
-        if (onTransition) DrawTransition();
-
-        //DrawFPS(10, 10);
-
-    EndDrawing();
     //----------------------------------------------------------------------------------
 }
