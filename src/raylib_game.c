@@ -9,7 +9,7 @@
 *   Copyright (c) 2021-2026 Ramon Santamaria (@raysan5)
 *
 ********************************************************************************************/
-
+//LO DE ARRIBA VENIA EN EL TEMPLATE FECHA 19/10/2026 HORA 20:17..
 #include <raylib.h>
 
 #if defined(PLATFORM_WEB)
@@ -292,6 +292,4 @@ int main(void) {
     CloseWindow();
     
     return 0;
-}
-    //----------------------------------------------------------------------------------
 }
