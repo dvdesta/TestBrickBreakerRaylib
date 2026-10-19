@@ -1,4 +1,4 @@
------------------------------------
+----------------------------------- 
 _DISCLAIMER:_
 
 Welcome to the **raylib game template**!
