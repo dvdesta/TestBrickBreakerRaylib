@@ -63,6 +63,8 @@ jobs:
         copy /Y ${{ env.PROJECT_BUILD_PATH }}\${{ env.PROJECT_NAME }}.data ${{ env.PROJECT_RELEASE_PATH }}\${{ env.PROJECT_NAME }}.data
         copy /Y ${{ env.PROJECT_BUILD_PATH }}\${{ env.PROJECT_NAME }}.js ${{ env.PROJECT_RELEASE_PATH }}\${{ env.PROJECT_NAME }}.js
         copy /Y ${{ env.PROJECT_BUILD_PATH }}\${{ env.PROJECT_NAME }}.html ${{ env.PROJECT_RELEASE_PATH }}\index.html
+        copy /Y ${{ env.PROJECT_REPO_NAME }}\*.mp3 ${{ env.PROJECT_RELEASE_PATH }}\
+        copy /Y ${{ env.PROJECT_REPO_NAME }}\*.wav ${{ env.PROJECT_RELEASE_PATH }}\
         dir ${{ env.PROJECT_RELEASE_PATH }}
       shell: cmd
 
