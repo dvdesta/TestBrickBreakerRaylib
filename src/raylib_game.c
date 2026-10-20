@@ -20,6 +20,20 @@
 
 #define FILAS 10
 #define COLUMNAS 6
+#define MAX 500 //  REPRESENTA LA CANTIDAD DE PARTICULAS MAXIMA PARA QUE NO EXPLOTE
+
+Color coloresFilas[FILAS] = {             //COLORES SACADOS DE INTERNET PORQUE ERA MUY ABURRIDO UNO POR UNO :V
+    CLITERAL(Color){ 255, 0, 128, 255 },    // Rosa Neón
+    CLITERAL(Color){ 0, 255, 255, 255 },    // Cian Eléctrico
+    CLITERAL(Color){ 255, 0, 255, 255 },    // Magenta Puro
+    CLITERAL(Color){ 0, 255, 0, 255 },      // Verde Neón (puro)
+    CLITERAL(Color){ 255, 255, 0, 255 },    // Amarillo Eléctrico
+    CLITERAL(Color){ 255, 100, 0, 255 },    // Naranja Brillante
+    CLITERAL(Color){ 128, 0, 255, 255 },    // Violeta Eléctrico
+    CLITERAL(Color){ 0, 128, 255, 255 },    // Azul Neón
+    CLITERAL(Color){ 255, 50, 50, 255 },    // Rojo Vivo
+    CLITERAL(Color){ 50, 255, 150, 255 }    // Verde Menta Neón
+};                                         //DEL TAMAÑO DE LAS FILAS EN ORDEN PARA IR CAMBIANDO PORQUE SINO EXPLOTA
 
 typedef struct {
     Rectangle rect;
@@ -29,6 +43,14 @@ typedef struct {
 typedef struct {
     Rectangle EstructuraRectangulo;
 } TipoBarra;
+
+typedef struct{
+    Color miColor;
+    Vector2 velocidad;
+    Vector2 posicion;
+    float tiempoVida;
+    bool activa;   //PA VER SI LA PARTICULA MURIO O NO
+} TipoParticulas;
 
 // --- VARIABLES GLOBALES PARA ACCESO EN EL BUCLE DE EMSCRIPTEN Y PC ---
 static Music musicaFondo = { 0 };
@@ -51,6 +73,7 @@ static bool MusicaFondo = true;
 
 static TipoBarra barra;
 static Ladrillo ladrillos[FILAS][COLUMNAS];
+static TipoParticulas particulas[MAX]; //CREAR EL VECTOR Y DEJAMOS TODO INACTIVO PARA QUE NO EXPLOTE NUCLEAR
 
 // --- FUNCIÓN QUE EJECUTA CADA FRAME DEL JUEGO PARA WEB Y PC ---
 static void UpdateDrawFrame(void)
@@ -90,7 +113,7 @@ static void UpdateDrawFrame(void)
         }
 
         if (IsKeyPressed(KEY_Y) || (tocandoPantalla && CheckCollisionPointRec(posToqueMenu, rectBotonYouTube))) {
-            OpenURL("https://www.youtube.com/watch?v=yztF4NBuanI");
+            OpenURL("https://www.youtube.com/@Morelloko");
         }
         if (IsKeyPressed(KEY_O) || (tocandoPantalla && CheckCollisionPointRec(posToqueMenu, rectBotonMusicaO))) {
             MusicaFondo = false;
@@ -104,7 +127,10 @@ static void UpdateDrawFrame(void)
         
         BeginDrawing();
             ClearBackground(BLACK);
-            DrawText("Presiona 'Y' para video de YouTube :D", 30, 400, 30, GOLD);
+            DrawText("Si estas en tactil presiona los textos .", 30, 40, 25, WHITE);
+            DrawText("En la WEB 'ESC' sirve para marcar los", 30, 80, 25, WHITE);
+            DrawText("limites en los que la pelota rebota .", 30, 120, 25, WHITE);
+            DrawText("Presiona 'Y' para canal de YouTube :D", 30, 400, 30, GOLD);
             DrawText("Presiona 'E' para iniciar el juego", 30, 440, 30, SKYBLUE);
             DrawText("Presiona 'ESC' para salir del juego", 30, 480, 30, SKYBLUE);
             DrawText("CONTROLES AQUÍ", 30, 700, 30, WHITE);
@@ -261,7 +287,7 @@ static void UpdateDrawFrame(void)
         
         // --- DIBUJO DE PELOTA Y BARRA ---
         DrawCircleV(PosicionPelota, RadioPelota, WHITE);
-        DrawRectangleRec(barra.EstructuraRectangulo, GREEN);
+        DrawRectangleRec(barra.EstructuraRectangulo, CLITERAL(Color){ 0, 255, 0, 255 });
         
         // --- BUCLE Y COLISIONES DE LOS LADRILLOS ---
         for (int i = 0; i < FILAS; i++){
@@ -269,6 +295,22 @@ static void UpdateDrawFrame(void)
                 if (CheckCollisionCircleRec(PosicionPelota, RadioPelota, ladrillos[i][j].rect) && ladrillos[i][j].activo) {
                     puntuacion += 1000;
                     PlaySound(sonidoReboteLadrillo);
+                    
+                    //CREAR PARTÍCULAS AL ROMPER EL LADRILLO
+                    int particulasCreadas = 0;
+                    for (int p = 0; p < MAX && particulasCreadas < 15; p++) {
+                        if (particulas[p].activa == false) {
+                            particulas[p].posicion = (Vector2){ ladrillos[i][j].rect.x + (ladrillos[i][j].rect.width / 2.0f), ladrillos[i][j].rect.y + (ladrillos[i][j].rect.height / 2.0f)};
+                            
+                            // VELOCIDAD ALEATORIA PARA QUE SE VEA MAS REALISTA
+                            particulas[p].velocidad = (Vector2){ (float)(GetRandomValue(-300, 300)) / 50.0f, (float)(GetRandomValue(-300, 300)) / 50.0f};
+                            particulas[p].miColor = coloresFilas[i]; //EL VECTOR QUE ESTA ARRIBA DEL TODO DE COLORES
+                            particulas[p].tiempoVida = 0.6f; // TIEMPO QUE EXISTE EN SEGUNDOS
+                            particulas[p].activa = true;
+                            particulasCreadas++;
+                        }
+                    }
+                    // ---------------------------------------------
                     
                     if (PosicionPelota.x >= ladrillos[i][j].rect.x && PosicionPelota.x <= ladrillos[i][j].rect.x + ladrillos[i][j].rect.width) {
                         VelocidadPelota.y *= -1;
@@ -280,10 +322,29 @@ static void UpdateDrawFrame(void)
                 }
                 
                 if(ladrillos[i][j].activo){
-                    DrawRectangleRec(ladrillos[i][j].rect, YELLOW);
+                    DrawRectangleRec(ladrillos[i][j].rect, coloresFilas[i]);
                 }
             }
         }
+        
+        // --- ACTUALIZAR Y DIBUJAR PARTÍCULAS -----------------------
+        for (int p = 0; p < MAX; p++) {
+            if (particulas[p].activa == true) {
+                // LA VIDA VA BAJANDO
+                particulas[p].tiempoVida -= GetFrameTime();
+                if (particulas[p].tiempoVida <= 0.0f) {
+                    particulas[p].activa = false;
+                } else {
+                    // LA PARTICULA SE MUEVE
+                    particulas[p].posicion.x += particulas[p].velocidad.x;
+                    particulas[p].posicion.y += particulas[p].velocidad.y;
+                    
+                    // DIBUJAR CIRCULO PEQUEÑO Y EL FADE ES PARA QUE SE DESVANEZCAN (FUNCION EN BIBLIOTECA DE RAYLIB)
+                    DrawCircleV(particulas[p].posicion, 4.0f, Fade(particulas[p].miColor, particulas[p].tiempoVida));
+                }
+            }
+        }
+        //--------------------------------------------------------------
         
         // --- PANTALLA DE VICTORIA CON SOPORTE TÁCTIL ---
         if (ganador){
@@ -340,6 +401,11 @@ int main(void) {
     barra.EstructuraRectangulo.width = 60.0f;
     barra.EstructuraRectangulo.height = 15.0f;
     
+    // INICIALIZAR PARTÍCULAS INACTIVAS
+    for (int i = 0; i < MAX; i++){
+        particulas[i].activa = false;
+    }
+
     for (int i = 0; i < FILAS; i++){
         for (int j = 0; j < COLUMNAS; j++){
             ladrillos[i][j].rect.x = 100 + j * (anchoLadrillo + espacio);
