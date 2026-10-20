@@ -247,7 +247,7 @@ static void UpdateDrawFrame(void)
 }
 
 int main(void) {
-    InitWindow(640, 960, "Mi Segundo Juego");
+    InitWindow(640, 960, "BrickBreaker Morelloko");
     InitAudioDevice();
 
     // Cargar recursos con la ruta de la carpeta resources/ para la web
