@@ -359,7 +359,7 @@ static void UpdateDrawFrame(void)
                 toqueWinActivo = true;
             }
 
-            DrawText("¡¡GANASTE FELICATIONES!!", 40, 240, 40, GOLD);
+            DrawText("¡¡GANASTE FELICITACIONES!!", 30, 240, 40, GOLD);
             DrawText("Presiona 'R' para volver a jugar", 30, 440, 35, SKYBLUE);
             DrawText("Presiona 'ESC' para salirte", 30, 500, 35, SKYBLUE);
             
