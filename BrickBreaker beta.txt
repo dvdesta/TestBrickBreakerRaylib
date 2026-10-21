@@ -1,0 +1,428 @@
+#include <raylib.h>
+#define FILAS 10
+#define COLUMNAS 6
+#define MAX 500 //  REPRESENTA LA CANTIDAD DE PARTICULAS MAXIMA PARA QUE NO EXPLOTE
+
+Color coloresFilas[FILAS] = {              //COLORES SACADOS DE INTERNET PORQUE ERA MUY ABURRIDO UNO POR UNO :V
+    CLITERAL(Color){ 255, 0, 128, 255 },   // Rosa Neón
+    CLITERAL(Color){ 0, 255, 255, 255 },   // Cian Eléctrico
+    CLITERAL(Color){ 255, 0, 255, 255 },   // Magenta Puro
+    CLITERAL(Color){ 0, 255, 0, 255 },     // Verde Neón (puro)
+    CLITERAL(Color){ 255, 255, 0, 255 },   // Amarillo Eléctrico
+    CLITERAL(Color){ 255, 100, 0, 255 },   // Naranja Brillante
+    CLITERAL(Color){ 128, 0, 255, 255 },   // Violeta Eléctrico
+    CLITERAL(Color){ 0, 128, 255, 255 },   // Azul Neón
+    CLITERAL(Color){ 255, 50, 50, 255 },   // Rojo Vivo
+    CLITERAL(Color){ 50, 255, 150, 255 }   // Verde Menta Neón
+};                                         //DEL TAMAÑO DE LAS FILAS EN ORDEN PARA IR CAMBIANDO PORQUE SINO EXPLOTA
+
+typedef struct{
+    Rectangle rect;   //RECTANGLE ES OTRO STRUCT XD
+    bool activo;    //SI FUE DESTRUIDO O NO
+} Ladrillo;
+
+typedef struct{
+    Rectangle EstructuraRectangulo; //ESTRUCTURA DE LA BARRA DONDE REBOTA LA PELOTA
+} TipoBarra;
+    
+typedef struct{
+    Color miColor;
+    Vector2 velocidad;
+    Vector2 posicion;
+    float tiempoVida;
+    bool activa;   //PA VER SI LA PARTICULA MURIO O NO
+    
+} TipoParticulas;
+    
+    
+int main(void) {
+    //FIJACIONES RESOLUCION Y FPS
+    InitWindow(640, 960, "BrickBreaker Morelloko");
+    InitAudioDevice();
+    SetTargetFPS(60);
+    Music musicaFondo = LoadMusicStream("FondoBrick.mp3");
+    Sound sonidoWin = LoadSound("WinBricks.mp3");
+    Sound sonidoLose = LoadSound("LoseBricks.mp3");
+    Sound sonidoReboteLadrillo = LoadSound("click.wav");
+    Sound sonidoReboteBarra = LoadSound("hitHurt.wav");
+    HideCursor();
+    //-----------------------------------------------------------
+    
+    //  VARIABLES
+    int anchoLadrillo = 60, altoLadrillo = 20;
+    int espacio = 10, frames = 0, contador = 0;
+    int vidas = 3, puntuacion = 0;
+    Vector2 PosicionPelota = {320.0f, 760.0f};
+    Vector2 VelocidadPelota = {6.0f, -6.0f};
+    bool gameOver;
+    bool pausaPorMuerte = false;
+    bool ganador = false;
+    float RadioPelota = 5.0f;
+    bool PantallaInicial = true;
+    bool MusicaFondo = true;
+    
+    //TODO EL STRUCT DE LA BARRA VALORES
+    TipoBarra barra;
+    barra.EstructuraRectangulo.x = 275.0f;
+    barra.EstructuraRectangulo.y = 800.0f;
+    barra.EstructuraRectangulo.width = 60.0f;
+    barra.EstructuraRectangulo.height = 15.0f;
+    //--------------------------------------
+    
+    Ladrillo ladrillos[FILAS][COLUMNAS]; // CREA LA MATRIZ
+    
+    TipoParticulas particulas[MAX]; //CREAR EL VECTOR Y DEJAMOS TODO INACTIVO PARA QUE NO EXPLOTE NUCLEAR
+    for (int i = 0; i < MAX; i++){
+        particulas[i].activa = false;
+    }
+    
+    
+    for (int i = 0; i < FILAS; i++){
+        for (int j = 0; j < COLUMNAS; j++){
+            ladrillos[i][j].rect.x = 100 + j * (anchoLadrillo + espacio);   //TODO ESTO COMPLETA EL STRUCT DE RECTANGLE
+            ladrillos[i][j].rect.y = 50 + i * (altoLadrillo + espacio);
+            ladrillos[i][j].rect.width = anchoLadrillo;
+            ladrillos[i][j].rect.height = altoLadrillo;
+            
+            ladrillos[i][j].activo = true;
+        }
+    }
+    
+    //REPRODUCIR MUSICA DE FONDO EN TODO EL JUEGO
+    PlayMusicStream(musicaFondo);
+    
+    //ITERACION DE LA PANTALLA PRINCIPAL------------------------
+    while (WindowShouldClose() == false && PantallaInicial == true){
+        if (MusicaFondo == true){
+            UpdateMusicStream(musicaFondo);
+            if (IsMusicStreamPlaying(musicaFondo) == false) {
+                PlayMusicStream(musicaFondo);
+            }
+        }
+        
+        // RECTÁNGULOS TÁCTILES PARA LOS BOTONES DEL MENÚ PRINCIPAL ---
+        Rectangle rectBotonYouTube = { 30, 400, 580, 35 };
+        Rectangle rectBotonIniciar = { 30, 440, 450, 35 };
+        Rectangle rectBotonMusicaO = { 30, 840, 400, 30 };
+        Rectangle rectBotonMusicaI = { 30, 880, 400, 30 };
+        
+        // DETECCION DE TOQUE O CLIC EN CELU O PC
+        Vector2 posToqueMenu = { -1, -1 };
+        bool tocandoPantalla = false;
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            posToqueMenu = GetMousePosition();
+            tocandoPantalla = true;
+        } else if (GetTouchPointCount() > 0) {
+            posToqueMenu = GetTouchPosition(0);
+            tocandoPantalla = true;
+        }
+
+        if (IsKeyPressed(KEY_Y) || (tocandoPantalla && CheckCollisionPointRec(posToqueMenu, rectBotonYouTube))) {
+            OpenURL("https://www.youtube.com/@Morelloko");
+        }
+        
+        if (IsKeyPressed(KEY_O) || (tocandoPantalla && CheckCollisionPointRec(posToqueMenu, rectBotonMusicaO))) {
+            MusicaFondo = false;
+        }
+        if (IsKeyPressed(KEY_I) || (tocandoPantalla && CheckCollisionPointRec(posToqueMenu, rectBotonMusicaI))) {
+            MusicaFondo = true;
+        }
+        
+        if (IsKeyPressed(KEY_E) || (tocandoPantalla && CheckCollisionPointRec(posToqueMenu, rectBotonIniciar))) {
+            PantallaInicial = false;
+        }
+        // -----------------------------------------------------------
+
+        BeginDrawing();
+            //TEXTOS EN PANTALLA INICIAL EN ORDEN DE PANTALLA EN Y 
+            DrawText("Si estas en tactil presiona los textos .", 30, 40, 25, WHITE);
+            DrawText("En la WEB 'ESC' sirve para marcar los", 30, 80, 25, WHITE);
+            DrawText("limites en los que la pelota rebota .", 30, 120, 25, WHITE);
+            DrawText("Presiona 'Y' para canal de YouTube :D", 30, 400, 30, GOLD);
+            DrawText("Presiona 'E' para iniciar el juego", 30, 440, 30, SKYBLUE);
+            DrawText("Presiona 'ESC' para salir del juego", 30, 480, 30, SKYBLUE);
+            DrawText("CONTROLES AQUÍ", 30, 700, 30, WHITE);
+            DrawText("Left Arrow - Right Arrow    <---", 30, 760, 25, WHITE);
+            DrawText("Hold LeftMouseButton == Arrows    <---", 30, 800, 25, WHITE);
+            DrawText("Apagar Musica con tecla 'O'", 30, 840, 25, WHITE);
+            DrawText("Encender Musica con tecla 'I'", 30, 880, 25, WHITE);
+            
+        EndDrawing();
+    } //---------------------------------------------------------
+    
+    // BUCLE PRINCIPAL DEL JUEGO---------------------------------
+    while (WindowShouldClose() == false) { //MIENTRAS NO SE CIERRE LA VENTANA
+        
+        if (IsKeyPressed(KEY_O)){
+            MusicaFondo = false;
+        }
+        if (IsKeyPressed(KEY_I)){
+            MusicaFondo = true;
+        }
+            
+        if (pausaPorMuerte == false && ganador == false && MusicaFondo == true) {
+            UpdateMusicStream(musicaFondo);
+            if (IsMusicStreamPlaying(musicaFondo) == false) {
+                PlayMusicStream(musicaFondo);
+            }
+        }
+        
+        //CONTADOR DE SEGUNDOS INDEPENDIENTE A GAMEOVER
+        frames++;
+        if(frames >= 60){
+            contador++;
+            frames = 0;
+        }
+        //---------------------------------------------
+        
+        if (pausaPorMuerte == false && ganador == false) { //ES A LA HORA DE MORIR QUE PARE EL JUEGO
+        
+           //POSICION DE LA PELOTA CON MOVIMIENTO
+           PosicionPelota.x += VelocidadPelota.x;
+           PosicionPelota.y += VelocidadPelota.y;
+           //-------------------------------------
+            
+           //MOVIMIENTO DE LA BARRA CON TECLADO Y SOPORTE PARA CELU O TABLET
+           if (IsKeyDown(KEY_LEFT) && barra.EstructuraRectangulo.x >= 0.0f) barra.EstructuraRectangulo.x -= 7.0f;
+           if (IsKeyDown(KEY_RIGHT) && barra.EstructuraRectangulo.x <= 640.0f - barra.EstructuraRectangulo.width) barra.EstructuraRectangulo.x += 7.0f;
+           
+           //DETECTA CLIC DEL MOUSE EN PC O TOQUE DIRECTO CON EL DEDO EN CELU
+           if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || GetTouchPointCount() > 0) {
+                Vector2 posicionToque = GetMousePosition();
+                if (GetTouchPointCount() > 0) {
+                    posicionToque = GetTouchPosition(0); //OBTIENE LAS COORDENADAS EXACTAS DEL PRIMER DEDO EN EL CELU
+                }
+                barra.EstructuraRectangulo.x = posicionToque.x - (barra.EstructuraRectangulo.width / 2.0f);
+           }
+           //----------------------------------------------------------
+            
+           //COLISION CON LA BARRA Y CON LAS PAREDES DE LA CAJA
+           if (CheckCollisionCircleRec(PosicionPelota, RadioPelota, barra.EstructuraRectangulo)){
+                PlaySound(sonidoReboteBarra);
+                float centroBarra = barra.EstructuraRectangulo.x + (barra.EstructuraRectangulo.width / 2.0f);
+                float distanciaX = PosicionPelota.x - centroBarra;
+                VelocidadPelota.x = distanciaX * 0.3f; 
+                VelocidadPelota.y *= -1;
+           }
+           if (PosicionPelota.x - RadioPelota <= 0) VelocidadPelota.x *= -1;
+           if (PosicionPelota.x + RadioPelota >= 640) VelocidadPelota.x *= -1;
+           if (PosicionPelota.y - RadioPelota <= 0) VelocidadPelota.y *= -1;
+           //---------------------------------------------------
+            
+           //SI SE SALIO DEL LIMITE AQUI SUCEDE LA DERROTA
+           if (PosicionPelota.y >= 960.0f) {
+               vidas -= 1;
+               pausaPorMuerte = true;
+               if (MusicaFondo == true){
+                   PauseMusicStream(musicaFondo);
+               }
+               PlaySound(sonidoLose);
+               if (vidas <= 0) {
+                   gameOver = true;
+               }
+           }
+           //-------------------------------------------------------------
+           
+           // SI LLEGA A 60K SONIDO DE VICTORIA CHAD
+           if (puntuacion == 60000){
+                ganador = true;
+                if (MusicaFondo == true){
+                    PauseMusicStream(musicaFondo);
+                }
+                PlaySound(sonidoWin);
+           }
+        }// CIERRE DEL CORCHETE DE PAUSA POR MUERTE
+            
+        BeginDrawing(); //SOLO INGRESAR DRAWS- DIBUJO DE MAPA
+            ClearBackground(BLACK);
+            
+            //SE PERDIO UNA VIDA, PERO NO TODAS Y EL JUEGO SE PAUSO
+            if (pausaPorMuerte == true && gameOver == false && ganador == false) {
+                
+                // RECTÁNGULOS TÁCTILES PARA LOS MENÚS DE PAUSA / REINTENTO ---
+                Rectangle rectBotonReintentar = { 30, 520, 550, 40 };
+                Vector2 posToquePausa = { -1, -1 };
+                bool toquePausaActivo = false;
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    posToquePausa = GetMousePosition();
+                    toquePausaActivo = true;
+                } else if (GetTouchPointCount() > 0) {
+                    posToquePausa = GetTouchPosition(0);
+                    toquePausaActivo = true;
+                }
+
+                DrawText("Perdiste una vida", 140, 440, 40, RED);
+                DrawText("Presiona 'R' para reintentar", 30, 520, 40, SKYBLUE);
+                
+                if (IsKeyPressed(KEY_R) || (toquePausaActivo && CheckCollisionPointRec(posToquePausa, rectBotonReintentar))) {
+                    if (MusicaFondo == true){
+                        ResumeMusicStream(musicaFondo);
+                    }
+                    PosicionPelota.x = 320.0f;
+                    PosicionPelota.y = 760.0f; 
+                    VelocidadPelota.y = -6.0f;
+                    barra.EstructuraRectangulo.width += 15;
+                    pausaPorMuerte = false;    
+                }
+            }
+            
+            //SE PERDIERON TODAS LAS VIDAS Y SE ACABA TU PARTIDA, HORA DE REINICIO
+            if (gameOver == true && ganador == false) {
+                Rectangle rectBotonGameOver = { 30, 520, 550, 40 };
+                Vector2 posToqueGO = { -1, -1 };
+                bool toqueGOActivo = false;
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    posToqueGO = GetMousePosition();
+                    toqueGOActivo = true;
+                } else if (GetTouchPointCount() > 0) {
+                    posToqueGO = GetTouchPosition(0);
+                    toqueGOActivo = true;
+                }
+
+                DrawText("Te quedaste sin vidas", 70, 440, 40, RED);
+                DrawText("Presiona 'R' para volver a jugar", 30, 520, 35, SKYBLUE);
+                
+                if (IsKeyPressed(KEY_R) || (toqueGOActivo && CheckCollisionPointRec(posToqueGO, rectBotonGameOver))) {
+                    for (int i = 0; i < FILAS; i++) {
+                        for (int j = 0; j < COLUMNAS; j++) {
+                            ladrillos[i][j].activo = true;
+                        }
+                    }
+                    if (MusicaFondo == true){
+                        ResumeMusicStream(musicaFondo); // VUELVE LA MUSICA AL PRESIONAR R
+                    }
+                    PosicionPelota.x = 320.0f;
+                    PosicionPelota.y = 760.0f;
+                    VelocidadPelota.y = -6.0f;
+                    puntuacion = 0;
+                    vidas = 3;
+                    barra.EstructuraRectangulo.width = 60.0f;
+                    pausaPorMuerte = false;
+                    gameOver = false; 
+                }
+            }
+            //-------------------------------------------------------------
+            
+            //DIBUJO DE ESCRITURA, BARRA RECTANGULAR Y PELOTA
+            DrawText("PUNTUACION :", 20, 830, 30, WHITE);
+            DrawText(TextFormat(" %d", puntuacion), 250, 830, 30, YELLOW);
+            
+            DrawText("Vidas Restantes :", 20, 860, 30, WHITE);
+            DrawText(TextFormat(" %d", vidas), 300, 860, 30, RED);
+            
+            DrawText("Tiempo Perdido en este juego :", 20, 900, 30, WHITE);
+            DrawText(TextFormat(" %d", contador), 500, 900, 30, GOLD);
+            
+            DrawCircleV(PosicionPelota, RadioPelota, WHITE);
+            DrawRectangleRec(barra.EstructuraRectangulo, CLITERAL(Color){ 0, 255, 0, 255 });
+            
+            //BUCLE PARA CREAR LADRILLOS, COLISIONES Y COMPROBAR ESTADO DEL BLOQUE
+            for (int i = 0; i < FILAS; i++){
+                for (int j = 0; j < COLUMNAS; j++){
+                    
+                    if (CheckCollisionCircleRec(PosicionPelota, RadioPelota, ladrillos[i][j].rect) && ladrillos[i][j].activo == true) {
+                        puntuacion += 1000;
+                        PlaySound(sonidoReboteLadrillo);
+                        
+                        
+                        //CREAR PARTÍCULAS AL ROMPER EL LADRILLO
+                        int particulasCreadas = 0;
+                        for (int p = 0; p < MAX && particulasCreadas < 15; p++) {
+                            if (particulas[p].activa == false) {
+                                particulas[p].posicion = (Vector2){ ladrillos[i][j].rect.x + (ladrillos[i][j].rect.width / 2.0f), ladrillos[i][j].rect.y + (ladrillos[i][j].rect.height / 2.0f)};
+                                
+                                // VELOCIDAD ALEATORIA PARA QUE SE VEA MAS REALISTA
+                                particulas[p].velocidad = (Vector2){ (float)(GetRandomValue(-300, 300)) / 50.0f, (float)(GetRandomValue(-300, 300)) / 50.0f};
+                                particulas[p].miColor = coloresFilas[i]; //EL VECTOR QUE ESTA ARRIBA DEL TODO DE COLORES
+                                particulas[p].tiempoVida = 0.6f; // TIEMPO QUE EXISTE EN SEGUNDOS
+                                particulas[p].activa = true;
+                                particulasCreadas++;
+                            }
+                        }
+                        // ---------------------------------------------
+                        
+                        
+                        
+                        if (PosicionPelota.x >= ladrillos[i][j].rect.x && PosicionPelota.x <= ladrillos[i][j].rect.x + ladrillos[i][j].rect.width) {
+                            VelocidadPelota.y *= -1;
+                        } 
+                        else {
+                            VelocidadPelota.x *= -1;
+                        }
+                        ladrillos[i][j].activo = false;
+                    }
+                    
+                    if(ladrillos[i][j].activo == true){
+                        DrawRectangleRec(ladrillos[i][j].rect, coloresFilas[i]);
+                    }
+                }
+            }
+            //--------------------------------------------------------------
+            
+            // --- ACTUALIZAR Y DIBUJAR PARTÍCULAS -----------------------
+                        for (int p = 0; p < MAX; p++) {
+                            if (particulas[p].activa == true) {
+                                // LA VIDA VA BAJANDO
+                                particulas[p].tiempoVida -= GetFrameTime();
+                                if (particulas[p].tiempoVida <= 0.0f) {
+                                    particulas[p].activa = false;
+                                } else {
+                                    // LA PARTICULA SE MUEVE
+                                    particulas[p].posicion.x += particulas[p].velocidad.x;
+                                    particulas[p].posicion.y += particulas[p].velocidad.y;
+                                    
+                                    // DIBUJAR CIRCULO PEQUEÑO Y EL FADE ES PARA QUE SE DESVANEZCAN (FUNCION EN BIBLIOTECA DE RAYLIB)
+                                    DrawCircleV(particulas[p].posicion, 4.0f, Fade(particulas[p].miColor, particulas[p].tiempoVida));
+                                }
+                            }
+                        }
+            //--------------------------------------------------------------
+            
+            
+            //SISTEMA DE GANADOR CHAD
+            if (ganador == true){
+                Rectangle rectBotonWin = { 30, 440, 550, 40 };
+                Vector2 posToqueWin = { -1, -1 };
+                bool toqueWinActivo = false;
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    posToqueWin = GetMousePosition();
+                    toqueWinActivo = true;
+                } else if (GetTouchPointCount() > 0) {
+                    posToqueWin = GetTouchPosition(0);
+                    toqueWinActivo = true;
+                }
+
+                DrawText("¡¡GANASTE FELICITACIONES!!", 30, 240, 40, GOLD);
+                DrawText("Presiona 'R' para volver a jugar", 30, 440, 35, SKYBLUE);
+                DrawText("Presiona 'ESC' para salirte", 30, 500, 35, SKYBLUE);
+                
+                if (IsKeyPressed(KEY_R) || (toqueWinActivo && CheckCollisionPointRec(posToqueWin, rectBotonWin))) {
+                    if (MusicaFondo == true){
+                        ResumeMusicStream(musicaFondo); // VUELVE LA MUSICA AL PRESIONAR R
+                    }
+                    for (int i = 0; i < FILAS; i++) {
+                        for (int j = 0; j < COLUMNAS; j++) {
+                            ladrillos[i][j].activo = true;
+                        }
+                    }
+                    PosicionPelota.x = 320.0f;
+                    PosicionPelota.y = 760.0f;
+                    VelocidadPelota.y = -6.0f;
+                    puntuacion = 0;
+                    vidas = 3;
+                    barra.EstructuraRectangulo.width = 60.0f;
+                    ganador = false;
+                }
+            }//--------------------------------------------------
+            
+        EndDrawing();
+    }
+    UnloadSound(sonidoReboteLadrillo);
+    UnloadSound(sonidoReboteBarra);
+    UnloadSound(sonidoWin);
+    UnloadSound(sonidoLose);
+    UnloadMusicStream(musicaFondo);
+    CloseAudioDevice();
+    CloseWindow();
+    return 0;
+}
